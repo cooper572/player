@@ -82,36 +82,6 @@ function hideLoader() {
     }, 1000);
 }
 
-document.addEventListener('keydown', function (e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        if (document.body.classList.contains('tv-remote-nav-mode')) return;
-        if (e.key === 'ArrowLeft') { v.currentTime = Math.max(0, v.currentTime - 10); showUI(); }
-        if (e.key === 'ArrowRight') { v.currentTime = Math.min(v.duration || 0, v.currentTime + 10); showUI(); }
-        return;
-    }
-    if (e.key === ' ' || e.key === 'k' || e.key === 'K') { e.preventDefault(); haptic(10); v.paused ? v.play() : v.pause(); }
-    if (e.key === 'f' || e.key === 'F') {
-        if (isIOS()) {
-            if (v.webkitDisplayingFullscreen) {
-                v.webkitExitFullscreen();
-            } else {
-                v.webkitEnterFullscreen();
-            }
-            return;
-        }
-        var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-        var player = document.getElementById('player');
-        if (fsEl) {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        } else {
-            if (player.requestFullscreen) player.requestFullscreen();
-            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-        }
-    }
-});
-
 var p = new URLSearchParams(location.search);
 var id = p.get('id'), s = p.get('season'), e = p.get('episode'), ap = p.get('ap');
 
