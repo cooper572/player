@@ -85,7 +85,7 @@ function hideLoader() {
 document.addEventListener('keydown', function (e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        if (document.body.classList.contains('tv-nav-mode')) return;
+        if (document.body.classList.contains('tv-remote-nav-mode')) return;
         if (e.key === 'ArrowLeft') { v.currentTime = Math.max(0, v.currentTime - 10); showUI(); }
         if (e.key === 'ArrowRight') { v.currentTime = Math.min(v.duration || 0, v.currentTime + 10); showUI(); }
         return;
