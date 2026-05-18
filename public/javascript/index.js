@@ -515,7 +515,8 @@ function play(raw, skipProxy, videoId) {
     var btnFullscreen = document.getElementById('btn-fullscreen');
     var btnSettings = document.getElementById('btn-settings');
     var btnVolume = document.getElementById('btn-volume');
-    var volumeEmoji = document.getElementById('volume-emoji');
+    var volumeIconCurrent = document.getElementById('volume-icon-current');
+    var volumeIconNext = document.getElementById('volume-icon-next');
     var volumeSlider = document.getElementById('volume-slider');
     var settingsPanel = document.getElementById('settings-panel');
     var speedOpts = document.querySelectorAll('.settings-list-item[data-speed]');
@@ -537,6 +538,7 @@ function play(raw, skipProxy, videoId) {
     var shown = false;
     var settingsOpen = false;
     var lastAudibleVolume = 1;
+    var currentVolumeIconClass = volumeIconCurrent ? volumeIconCurrent.className : 'volume-icon-layer fa-solid fa-volume-high current';
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -754,11 +756,10 @@ function play(raw, skipProxy, videoId) {
         playIco.className = v.paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
     }
 
-    function getVolumeEmoji() {
-        if (v.muted || v.volume <= 0.001) return '\uD83D\uDD07';
-        if (v.volume < 0.34) return '\uD83D\uDD08';
-        if (v.volume < 0.67) return '\uD83D\uDD09';
-        return '\uD83D\uDD0A';
+    function getVolumeIconClass() {
+        if (v.muted || v.volume <= 0.001) return 'fa-solid fa-volume-xmark';
+        if (v.volume < 0.5) return 'fa-solid fa-volume-low';
+        return 'fa-solid fa-volume-high';
     }
 
     function paintVolumeSlider(value) {
@@ -767,10 +768,35 @@ function play(raw, skipProxy, videoId) {
         volumeSlider.style.background = 'linear-gradient(to right, rgba(255, 255, 255, 0.95) ' + pct + '%, rgba(255, 255, 255, 0.18) ' + pct + '%)';
     }
 
+    function animateVolumeIcon(nextIconClass) {
+        if (!btnVolume || !volumeIconCurrent || !volumeIconNext) return;
+        var targetClass = 'volume-icon-layer ' + nextIconClass + ' current';
+        if (currentVolumeIconClass === targetClass) return;
+
+        volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
+        btnVolume.classList.remove('is-switching');
+        void btnVolume.offsetWidth;
+        btnVolume.classList.add('is-switching');
+
+        setTimeout(function () {
+            volumeIconCurrent.className = targetClass;
+            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
+            btnVolume.classList.remove('is-switching');
+            currentVolumeIconClass = targetClass;
+        }, 320);
+    }
+
     function syncVolumeButton(force) {
-        if (!btnVolume || !volumeEmoji) return;
-        var nextEmoji = getVolumeEmoji();
-        volumeEmoji.textContent = nextEmoji;
+        if (!btnVolume || !volumeIconCurrent || !volumeIconNext) return;
+        var nextIconClass = getVolumeIconClass();
+        if (force) {
+            volumeIconCurrent.className = 'volume-icon-layer ' + nextIconClass + ' current';
+            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
+            currentVolumeIconClass = volumeIconCurrent.className;
+            btnVolume.classList.remove('is-switching');
+        } else {
+            animateVolumeIcon(nextIconClass);
+        }
 
         var label = (v.muted || v.volume <= 0.001) ? 'Unmute' : 'Mute';
         btnVolume.setAttribute('aria-label', label);

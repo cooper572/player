@@ -97,7 +97,10 @@
                     <div class="right-controls">
                         <div id="volume-control" class="volume-control">
                             <button id="btn-volume" class="ctrl-btn emoji-volume-btn" title="Mute / Unmute" aria-label="Mute or unmute">
-                                <span id="volume-emoji" class="emoji-volume-single" aria-hidden="true">&#128266;</span>
+                                <span class="volume-icon-stack" aria-hidden="true">
+                                    <i id="volume-icon-current" class="volume-icon-layer fa-solid fa-volume-high current"></i>
+                                    <i id="volume-icon-next" class="volume-icon-layer fa-solid fa-volume-high next"></i>
+                                </span>
                             </button>
                             <div class="volume-slider-wrap">
                                 <input id="volume-slider" class="volume-slider" type="range" min="0" max="100" value="100" aria-label="Volume">
