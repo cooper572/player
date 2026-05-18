@@ -514,6 +514,9 @@ function play(raw, skipProxy, videoId) {
     var btnPip = document.getElementById('btn-pip');
     var btnFullscreen = document.getElementById('btn-fullscreen');
     var btnSettings = document.getElementById('btn-settings');
+    var btnVolume = document.getElementById('btn-volume');
+    var volumeEmojiCurrent = document.getElementById('volume-emoji-current');
+    var volumeEmojiNext = document.getElementById('volume-emoji-next');
     var settingsPanel = document.getElementById('settings-panel');
     var speedOpts = document.querySelectorAll('.settings-list-item[data-speed]');
     var qualityOptsEl = document.getElementById('quality-opts');
@@ -533,6 +536,8 @@ function play(raw, skipProxy, videoId) {
     var dragging = false;
     var shown = false;
     var settingsOpen = false;
+    var lastAudibleVolume = 1;
+    var currentVolumeEmoji = volumeEmojiCurrent ? volumeEmojiCurrent.textContent : '\uD83D\uDD0A';
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -750,6 +755,82 @@ function play(raw, skipProxy, videoId) {
         playIco.className = v.paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
     }
 
+    function getVolumeEmoji() {
+        if (v.muted || v.volume <= 0.001) return '\uD83D\uDD07';
+        if (v.volume < 0.34) return '\uD83D\uDD08';
+        if (v.volume < 0.67) return '\uD83D\uDD09';
+        return '\uD83D\uDD0A';
+    }
+
+    function animateVolumeEmoji(nextEmoji) {
+        if (!btnVolume || !volumeEmojiCurrent || !volumeEmojiNext) return;
+        if (currentVolumeEmoji === nextEmoji) return;
+
+        volumeEmojiNext.textContent = nextEmoji;
+        btnVolume.classList.remove('is-switching');
+        void btnVolume.offsetWidth;
+        btnVolume.classList.add('is-switching');
+
+        setTimeout(function () {
+            volumeEmojiCurrent.textContent = nextEmoji;
+            volumeEmojiNext.textContent = nextEmoji;
+            btnVolume.classList.remove('is-switching');
+            currentVolumeEmoji = nextEmoji;
+        }, 340);
+    }
+
+    function syncVolumeButton(force) {
+        if (!btnVolume || !volumeEmojiCurrent || !volumeEmojiNext) return;
+        var nextEmoji = getVolumeEmoji();
+        if (force) {
+            volumeEmojiCurrent.textContent = nextEmoji;
+            volumeEmojiNext.textContent = nextEmoji;
+            currentVolumeEmoji = nextEmoji;
+            btnVolume.classList.remove('is-switching');
+        } else {
+            animateVolumeEmoji(nextEmoji);
+        }
+
+        var label = (v.muted || v.volume <= 0.001) ? 'Unmute' : 'Mute';
+        btnVolume.setAttribute('aria-label', label);
+        btnVolume.title = label;
+    }
+
+    function hideUnmuteHintInstant() {
+        var hint = document.getElementById('unmute-hint');
+        if (!hint) return;
+        hint.style.opacity = '0';
+        hint.style.pointerEvents = 'none';
+        hint.style.display = 'none';
+    }
+
+    function getRestoredVolume() {
+        var saved = NaN;
+        try {
+            saved = parseFloat(localStorage.getItem('playerVolume'));
+        } catch (err) { }
+
+        if (!isNaN(saved) && saved > 0 && saved <= 1) return saved;
+        if (lastAudibleVolume > 0.001) return lastAudibleVolume;
+        return 1;
+    }
+
+    function toggleMute() {
+        if (v.muted || v.volume <= 0.001) {
+            v.volume = getRestoredVolume();
+            v.muted = false;
+            _autoplayUnlocked = true;
+            _pendingUnmute = false;
+            hideUnmuteHintInstant();
+        } else {
+            if (v.volume > 0.001) lastAudibleVolume = v.volume;
+            v.muted = true;
+        }
+        syncVolumeButton();
+        showUI();
+        haptic(6);
+    }
+
     function flashCenter() {
         ci.className = v.paused ? 'fa-solid fa-pause' : 'fa-solid fa-play';
         if (v.paused) {
@@ -925,6 +1006,7 @@ function play(raw, skipProxy, videoId) {
         scheduleRetry();
         attemptAutoplay();
         restoreVolume();
+        syncVolumeButton(true);
     }
 
     var _autoplayUnlocked = false;
@@ -966,7 +1048,7 @@ function play(raw, skipProxy, videoId) {
             if (_unmuteDone) return;
             _unmuteDone = true;
             v.muted = false;
-            v.volume = 1;
+            v.volume = getRestoredVolume();
             _autoplayUnlocked = true;
             _pendingUnmute = false;
             hint.style.opacity = '0';
@@ -975,6 +1057,7 @@ function play(raw, skipProxy, videoId) {
             hint.removeEventListener('click', onHintClick);
             document.removeEventListener('touchend', onDocTouch, true);
             document.removeEventListener('click', onDocClick, true);
+            syncVolumeButton();
             haptic();
         }
 
@@ -1041,15 +1124,27 @@ function play(raw, skipProxy, videoId) {
     function restoreVolume() {
         try {
             var vol = parseFloat(localStorage.getItem('playerVolume'));
-            if (!isNaN(vol) && vol >= 0 && vol <= 1) v.volume = vol;
+            if (!isNaN(vol) && vol >= 0 && vol <= 1) {
+                v.volume = vol;
+                if (vol > 0.001) lastAudibleVolume = vol;
+            }
         } catch (ex) { }
     }
 
     v.addEventListener('volumechange', function () {
         if (!v.muted) {
+            if (v.volume > 0.001) lastAudibleVolume = v.volume;
             try { localStorage.setItem('playerVolume', v.volume); } catch (ex) { }
         }
+        syncVolumeButton();
     });
+
+    if (btnVolume) {
+        btnVolume.onclick = function (e) {
+            e.stopPropagation();
+            toggleMute();
+        };
+    }
 
     var retryCount = 0;
     var maxRetries = 6;

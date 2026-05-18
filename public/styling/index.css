@@ -658,6 +658,74 @@ video {
     border-radius: 100px;
 }
 
+.emoji-volume-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.emoji-volume-stack {
+    position: relative;
+    width: 1.4em;
+    height: 1.4em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-volume-glyph {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.16rem;
+    line-height: 1;
+    filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.3));
+    transform-origin: 50% 50%;
+}
+
+.emoji-volume-glyph.next {
+    opacity: 0;
+    transform: translateY(8px) scale(0.75) rotate(-10deg);
+}
+
+.emoji-volume-btn.is-switching .emoji-volume-glyph.current {
+    animation: volumeEmojiOut 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.emoji-volume-btn.is-switching .emoji-volume-glyph.next {
+    animation: volumeEmojiIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes volumeEmojiOut {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.72) rotate(12deg);
+    }
+}
+
+@keyframes volumeEmojiIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.72) rotate(-14deg);
+    }
+
+    65% {
+        opacity: 1;
+        transform: translateY(-2px) scale(1.08) rotate(4deg);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+    }
+}
+
 #time-row {
     display: flex;
     align-items: center;
