@@ -539,6 +539,7 @@ function play(raw, skipProxy, videoId) {
     var settingsOpen = false;
     var lastAudibleVolume = 1;
     var currentVolumeIconClass = volumeIconCurrent ? volumeIconCurrent.className : 'volume-icon-layer fa-solid fa-volume-high current';
+    var animateVolumeIconOnNextSync = false;
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -786,7 +787,7 @@ function play(raw, skipProxy, videoId) {
         }, 320);
     }
 
-    function syncVolumeButton(force) {
+    function syncVolumeButton(force, animate) {
         if (!btnVolume || !volumeIconCurrent || !volumeIconNext) return;
         var nextIconClass = getVolumeIconClass();
         if (force) {
@@ -794,8 +795,13 @@ function play(raw, skipProxy, videoId) {
             volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
             currentVolumeIconClass = volumeIconCurrent.className;
             btnVolume.classList.remove('is-switching');
-        } else {
+        } else if (animate) {
             animateVolumeIcon(nextIconClass);
+        } else {
+            volumeIconCurrent.className = 'volume-icon-layer ' + nextIconClass + ' current';
+            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
+            currentVolumeIconClass = volumeIconCurrent.className;
+            btnVolume.classList.remove('is-switching');
         }
 
         var label = (v.muted || v.volume <= 0.001) ? 'Unmute' : 'Mute';
@@ -830,6 +836,7 @@ function play(raw, skipProxy, videoId) {
     }
 
     function toggleMute() {
+        animateVolumeIconOnNextSync = true;
         if (v.muted || v.volume <= 0.001) {
             v.volume = getRestoredVolume();
             v.muted = false;
@@ -840,7 +847,6 @@ function play(raw, skipProxy, videoId) {
             if (v.volume > 0.001) lastAudibleVolume = v.volume;
             v.muted = true;
         }
-        syncVolumeButton();
         showUI();
         haptic(6);
     }
@@ -1071,7 +1077,7 @@ function play(raw, skipProxy, videoId) {
             hint.removeEventListener('click', onHintClick);
             document.removeEventListener('touchend', onDocTouch, true);
             document.removeEventListener('click', onDocClick, true);
-            syncVolumeButton();
+            syncVolumeButton(false, false);
             haptic();
         }
 
@@ -1150,7 +1156,8 @@ function play(raw, skipProxy, videoId) {
             if (v.volume > 0.001) lastAudibleVolume = v.volume;
             try { localStorage.setItem('playerVolume', v.volume); } catch (ex) { }
         }
-        syncVolumeButton();
+        syncVolumeButton(false, animateVolumeIconOnNextSync);
+        animateVolumeIconOnNextSync = false;
     });
 
     if (btnVolume) {
