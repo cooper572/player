@@ -515,8 +515,8 @@ function play(raw, skipProxy, videoId) {
     var btnFullscreen = document.getElementById('btn-fullscreen');
     var btnSettings = document.getElementById('btn-settings');
     var btnVolume = document.getElementById('btn-volume');
-    var volumeEmojiCurrent = document.getElementById('volume-emoji-current');
-    var volumeEmojiNext = document.getElementById('volume-emoji-next');
+    var volumeEmoji = document.getElementById('volume-emoji');
+    var volumeSlider = document.getElementById('volume-slider');
     var settingsPanel = document.getElementById('settings-panel');
     var speedOpts = document.querySelectorAll('.settings-list-item[data-speed]');
     var qualityOptsEl = document.getElementById('quality-opts');
@@ -537,7 +537,6 @@ function play(raw, skipProxy, videoId) {
     var shown = false;
     var settingsOpen = false;
     var lastAudibleVolume = 1;
-    var currentVolumeEmoji = volumeEmojiCurrent ? volumeEmojiCurrent.textContent : '\uD83D\uDD0A';
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -762,38 +761,27 @@ function play(raw, skipProxy, videoId) {
         return '\uD83D\uDD0A';
     }
 
-    function animateVolumeEmoji(nextEmoji) {
-        if (!btnVolume || !volumeEmojiCurrent || !volumeEmojiNext) return;
-        if (currentVolumeEmoji === nextEmoji) return;
-
-        volumeEmojiNext.textContent = nextEmoji;
-        btnVolume.classList.remove('is-switching');
-        void btnVolume.offsetWidth;
-        btnVolume.classList.add('is-switching');
-
-        setTimeout(function () {
-            volumeEmojiCurrent.textContent = nextEmoji;
-            volumeEmojiNext.textContent = nextEmoji;
-            btnVolume.classList.remove('is-switching');
-            currentVolumeEmoji = nextEmoji;
-        }, 340);
+    function paintVolumeSlider(value) {
+        if (!volumeSlider) return;
+        var pct = Math.max(0, Math.min(100, value));
+        volumeSlider.style.background = 'linear-gradient(to right, rgba(255, 255, 255, 0.95) ' + pct + '%, rgba(255, 255, 255, 0.18) ' + pct + '%)';
     }
 
     function syncVolumeButton(force) {
-        if (!btnVolume || !volumeEmojiCurrent || !volumeEmojiNext) return;
+        if (!btnVolume || !volumeEmoji) return;
         var nextEmoji = getVolumeEmoji();
-        if (force) {
-            volumeEmojiCurrent.textContent = nextEmoji;
-            volumeEmojiNext.textContent = nextEmoji;
-            currentVolumeEmoji = nextEmoji;
-            btnVolume.classList.remove('is-switching');
-        } else {
-            animateVolumeEmoji(nextEmoji);
-        }
+        volumeEmoji.textContent = nextEmoji;
 
         var label = (v.muted || v.volume <= 0.001) ? 'Unmute' : 'Mute';
         btnVolume.setAttribute('aria-label', label);
         btnVolume.title = label;
+        if (volumeSlider) {
+            var sliderValue = Math.round((v.muted ? 0 : v.volume) * 100);
+            if (force || String(volumeSlider.value) !== String(sliderValue)) {
+                volumeSlider.value = sliderValue;
+            }
+            paintVolumeSlider(sliderValue);
+        }
     }
 
     function hideUnmuteHintInstant() {
@@ -1144,6 +1132,27 @@ function play(raw, skipProxy, videoId) {
             e.stopPropagation();
             toggleMute();
         };
+    }
+
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', function (e) {
+            e.stopPropagation();
+            var nextVolume = Math.max(0, Math.min(1, parseFloat(volumeSlider.value) / 100));
+            v.volume = nextVolume;
+            v.muted = nextVolume <= 0.001;
+            if (nextVolume > 0.001) {
+                lastAudibleVolume = nextVolume;
+                _autoplayUnlocked = true;
+                _pendingUnmute = false;
+                hideUnmuteHintInstant();
+            }
+            paintVolumeSlider(volumeSlider.value);
+            showUI();
+        });
+
+        volumeSlider.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
     }
 
     var retryCount = 0;

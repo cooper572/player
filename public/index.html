@@ -95,12 +95,14 @@
                     </button>
                     <div class="ctrl-spacer"></div>
                     <div class="right-controls">
-                        <button id="btn-volume" class="ctrl-btn emoji-volume-btn" title="Mute / Unmute" aria-label="Mute or unmute">
-                            <span class="emoji-volume-stack" aria-hidden="true">
-                                <span id="volume-emoji-current" class="emoji-volume-glyph current">&#128266;</span>
-                                <span id="volume-emoji-next" class="emoji-volume-glyph next">&#128266;</span>
-                            </span>
-                        </button>
+                        <div id="volume-control" class="volume-control">
+                            <button id="btn-volume" class="ctrl-btn emoji-volume-btn" title="Mute / Unmute" aria-label="Mute or unmute">
+                                <span id="volume-emoji" class="emoji-volume-single" aria-hidden="true">&#128266;</span>
+                            </button>
+                            <div class="volume-slider-wrap">
+                                <input id="volume-slider" class="volume-slider" type="range" min="0" max="100" value="100" aria-label="Volume">
+                            </div>
+                        </div>
                         <span id="ep-current-title" class="ep-current-title-label"></span>
                         <div id="settings-btn-wrap">
                             <button id="btn-settings" class="ctrl-btn" title="Settings"><i

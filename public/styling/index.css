@@ -652,78 +652,90 @@ video {
 .right-controls {
     display: flex;
     align-items: center;
+    gap: 2px;
     backdrop-filter: blur(8px) saturate(10);
     -webkit-backdrop-filter: blur(8px) saturate(10);
     background: var(--menu-bg);
     border-radius: 100px;
 }
 
-.emoji-volume-btn {
-    position: relative;
-    overflow: hidden;
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-left: 4px;
 }
 
-.emoji-volume-stack {
+.emoji-volume-btn {
     position: relative;
-    width: 1.4em;
-    height: 1.4em;
+    flex-shrink: 0;
+}
+
+.emoji-volume-single {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.08rem;
+    line-height: 1;
+    filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.25));
 }
 
-.emoji-volume-glyph {
-    position: absolute;
-    inset: 0;
+.volume-slider-wrap {
+    width: 88px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.16rem;
-    line-height: 1;
-    filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.3));
-    transform-origin: 50% 50%;
+    padding-right: 10px;
 }
 
-.emoji-volume-glyph.next {
-    opacity: 0;
-    transform: translateY(8px) scale(0.75) rotate(-10deg);
+.volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.95) 100%, rgba(255, 255, 255, 0.18) 100%);
 }
 
-.emoji-volume-btn.is-switching .emoji-volume-glyph.current {
-    animation: volumeEmojiOut 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.volume-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: transparent;
 }
 
-.emoji-volume-btn.is-switching .emoji-volume-glyph.next {
-    animation: volumeEmojiIn 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: none;
+    border-radius: 50%;
+    background: var(--white);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
 }
 
-@keyframes volumeEmojiOut {
-    0% {
-        opacity: 1;
-        transform: translateY(0) scale(1) rotate(0deg);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translateY(-8px) scale(0.72) rotate(12deg);
-    }
+.volume-slider::-moz-range-track {
+    height: 4px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
 }
 
-@keyframes volumeEmojiIn {
-    0% {
-        opacity: 0;
-        transform: translateY(10px) scale(0.72) rotate(-14deg);
-    }
+.volume-slider::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+}
 
-    65% {
-        opacity: 1;
-        transform: translateY(-2px) scale(1.08) rotate(4deg);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1) rotate(0deg);
-    }
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--white);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
 }
 
 #time-row {
@@ -1120,6 +1132,11 @@ video {
 @media (max-width: 768px) {
     #time-row {
         display: none;
+    }
+
+    .volume-slider-wrap {
+        width: 64px;
+        padding-right: 8px;
     }
 }
 
