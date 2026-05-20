@@ -83,6 +83,36 @@ function hideLoader() {
     }, 1000);
 }
 
+document.addEventListener('keydown', function (e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (document.body.classList.contains('tv-nav-mode')) return;
+        if (e.key === 'ArrowLeft') { v.currentTime = Math.max(0, v.currentTime - 10); showUI(); }
+        if (e.key === 'ArrowRight') { v.currentTime = Math.min(v.duration || 0, v.currentTime + 10); showUI(); }
+        return;
+    }
+    if (e.key === ' ' || e.key === 'k' || e.key === 'K') { e.preventDefault(); haptic(10); v.paused ? v.play() : v.pause(); }
+    if (e.key === 'f' || e.key === 'F') {
+        if (isIOS() && typeof v.webkitEnterFullscreen === 'function') {
+            if (v.webkitDisplayingFullscreen) {
+                v.webkitExitFullscreen();
+            } else {
+                v.webkitEnterFullscreen();
+            }
+            return;
+        }
+        var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        var player = document.getElementById('player');
+        if (fsEl) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } else {
+            if (player.requestFullscreen) player.requestFullscreen();
+            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+        }
+    }
+});
+
 var p = new URLSearchParams(location.search);
 var id = p.get('id'), s = p.get('season'), e = p.get('episode'), ap = p.get('ap');
 
@@ -461,7 +491,8 @@ function play(raw, skipProxy, videoId) {
     var thumb = document.getElementById('thumb');
     var tCur = document.getElementById('t-cur');
     var tDur = document.getElementById('t-dur');
-    var playIco = document.getElementById('play-ico');
+    var tdCur = document.getElementById('td-cur');
+    var tdDur = document.getElementById('td-dur');
     var ci = document.getElementById('ci');
     var centerFlash = document.getElementById('center-flash');
     var cfSkipLeft = document.getElementById('cf-skip-left');
@@ -485,10 +516,6 @@ function play(raw, skipProxy, videoId) {
     var btnPip = document.getElementById('btn-pip');
     var btnFullscreen = document.getElementById('btn-fullscreen');
     var btnSettings = document.getElementById('btn-settings');
-    var btnVolume = document.getElementById('btn-volume');
-    var volumeIconCurrent = document.getElementById('volume-icon-current');
-    var volumeIconNext = document.getElementById('volume-icon-next');
-    var volumeSlider = document.getElementById('volume-slider');
     var settingsPanel = document.getElementById('settings-panel');
     var speedOpts = document.querySelectorAll('.settings-list-item[data-speed]');
     var qualityOptsEl = document.getElementById('quality-opts');
@@ -504,13 +531,30 @@ function play(raw, skipProxy, videoId) {
     var subtitleText = document.getElementById('subtitle-text');
     var tooltip = document.getElementById('tooltip');
 
+    var volSlider = document.getElementById('volume-slider');
+    var volIcon = document.getElementById('volume-icon');
+    var VOL_ICONS = {
+        off: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 512"><path fill="currentColor" d="M301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3zM425 167l55 55 55-55c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-55 55 55 55c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-55-55-55 55c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l55-55-55-55c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0z"/></svg>',
+        low: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 512"><path fill="currentColor" d="M301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3zm105.5 145.2C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5z"/></svg>',
+        mid: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 512"><path fill="currentColor" d="M473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/></svg>',
+        high: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 640 512"><path fill="currentColor" d="M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/></svg>'
+    };
+    function updateVolumeUI() {
+        var vol = v.muted ? 0 : v.volume;
+        if (volSlider) volSlider.value = Math.round(vol * 100);
+        if (volIcon) {
+            if (vol === 0) volIcon.innerHTML = VOL_ICONS.off;
+            else if (vol < 0.25) volIcon.innerHTML = VOL_ICONS.low;
+            else if (vol < 0.6) volIcon.innerHTML = VOL_ICONS.mid;
+            else volIcon.innerHTML = VOL_ICONS.high;
+        }
+    }
+    updateVolumeUI();
+
     var hideTimer = null;
     var dragging = false;
     var shown = false;
     var settingsOpen = false;
-    var lastAudibleVolume = 1;
-    var currentVolumeIconClass = volumeIconCurrent ? volumeIconCurrent.className : 'volume-icon-layer fa-solid fa-volume-high current';
-    var animateVolumeIconOnNextSync = false;
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -654,25 +698,6 @@ function play(raw, skipProxy, videoId) {
         v.style.objectFit = videoState.ratio;
     }
 
-    function isIOS() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    }
-
-    function isAndroid() {
-        return /Android/.test(navigator.userAgent);
-    }
-
-    function showToast(message, duration) {
-        var toast = document.getElementById('now-playing-toast');
-        if (toast) {
-            toast.textContent = message;
-            toast.style.display = 'block';
-            setTimeout(function () {
-                toast.style.display = 'none';
-            }, duration || 3000);
-        }
-    }
-
     if (subFontSelect) subFontSelect.value = subState.font;
     if (subSizeSelect) subSizeSelect.value = subState.size;
     if (subColorInput) subColorInput.value = subState.color;
@@ -724,113 +749,17 @@ function play(raw, skipProxy, videoId) {
         shown = false;
     }
 
-    function syncIcon() {
-        playIco.className = v.paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
-    }
+    v.addEventListener('play', function () {
+        ci.className = 'fa-solid fa-pause';
+        centerFlash.classList.remove('paused');
+    });
 
-    function getVolumeIconClass() {
-        if (v.muted || v.volume <= 0.001) return 'fa-solid fa-volume-xmark';
-        if (v.volume < 0.5) return 'fa-solid fa-volume-low';
-        return 'fa-solid fa-volume-high';
-    }
-
-    function paintVolumeSlider(value) {
-        if (!volumeSlider) return;
-        var pct = Math.max(0, Math.min(100, value));
-        volumeSlider.style.background = 'linear-gradient(to right, rgba(255, 255, 255, 0.95) ' + pct + '%, rgba(255, 255, 255, 0.18) ' + pct + '%)';
-    }
-
-    function animateVolumeIcon(nextIconClass) {
-        if (!btnVolume || !volumeIconCurrent || !volumeIconNext) return;
-        var targetClass = 'volume-icon-layer ' + nextIconClass + ' current';
-        if (currentVolumeIconClass === targetClass) return;
-
-        volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
-        btnVolume.classList.remove('is-switching');
-        void btnVolume.offsetWidth;
-        btnVolume.classList.add('is-switching');
-
-        setTimeout(function () {
-            volumeIconCurrent.className = targetClass;
-            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
-            btnVolume.classList.remove('is-switching');
-            currentVolumeIconClass = targetClass;
-        }, 320);
-    }
-
-    function syncVolumeButton(force, animate) {
-        if (!btnVolume || !volumeIconCurrent || !volumeIconNext) return;
-        var nextIconClass = getVolumeIconClass();
-        if (force) {
-            volumeIconCurrent.className = 'volume-icon-layer ' + nextIconClass + ' current';
-            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
-            currentVolumeIconClass = volumeIconCurrent.className;
-            btnVolume.classList.remove('is-switching');
-        } else if (animate) {
-            animateVolumeIcon(nextIconClass);
-        } else {
-            volumeIconCurrent.className = 'volume-icon-layer ' + nextIconClass + ' current';
-            volumeIconNext.className = 'volume-icon-layer ' + nextIconClass + ' next';
-            currentVolumeIconClass = volumeIconCurrent.className;
-            btnVolume.classList.remove('is-switching');
-        }
-
-        var label = (v.muted || v.volume <= 0.001) ? 'Unmute' : 'Mute';
-        btnVolume.setAttribute('aria-label', label);
-        btnVolume.title = label;
-        if (volumeSlider) {
-            var sliderValue = Math.round((v.muted ? 0 : v.volume) * 100);
-            if (force || String(volumeSlider.value) !== String(sliderValue)) {
-                volumeSlider.value = sliderValue;
-            }
-            paintVolumeSlider(sliderValue);
-        }
-    }
-
-    function hideUnmuteHintInstant() {
-        var hint = document.getElementById('unmute-hint');
-        if (!hint) return;
-        hint.style.opacity = '0';
-        hint.style.pointerEvents = 'none';
-        hint.style.display = 'none';
-    }
-
-    function getRestoredVolume() {
-        var saved = NaN;
-        try {
-            saved = parseFloat(localStorage.getItem('playerVolume'));
-        } catch (err) { }
-
-        if (!isNaN(saved) && saved > 0 && saved <= 1) return saved;
-        if (lastAudibleVolume > 0.001) return lastAudibleVolume;
-        return 1;
-    }
-
-    function toggleMute() {
-        animateVolumeIconOnNextSync = true;
-        if (v.muted || v.volume <= 0.001) {
-            v.volume = getRestoredVolume();
-            v.muted = false;
-            _autoplayUnlocked = true;
-            _pendingUnmute = false;
-            hideUnmuteHintInstant();
-        } else {
-            if (v.volume > 0.001) lastAudibleVolume = v.volume;
-            v.muted = true;
-        }
-        showUI();
-        haptic(6);
-    }
+    v.addEventListener('pause', function () {
+        ci.className = 'fa-solid fa-play';
+        centerFlash.classList.add('paused');
+    });
 
     function flashCenter() {
-        ci.className = v.paused ? 'fa-solid fa-pause' : 'fa-solid fa-play';
-        if (v.paused) {
-            ci.classList.add('paused');
-            centerFlash.classList.add('paused');
-        } else {
-            ci.classList.remove('paused');
-            centerFlash.classList.remove('paused');
-        }
         ci.classList.remove('pop');
         void ci.offsetWidth;
         ci.classList.add('pop');
@@ -848,6 +777,8 @@ function play(raw, skipProxy, videoId) {
             thumb.style.left = 'calc(' + pct + '% - ' + (pct / 100 * 0) + 'px)';
             tCur.textContent = fmt(v.currentTime);
             tDur.textContent = fmt(v.duration);
+            if (tdCur) tdCur.textContent = fmt(v.currentTime);
+            if (tdDur) tdDur.textContent = fmt(v.duration);
             if (v.buffered.length) {
                 var bufEnd = 0;
                 for (var bi = 0; bi < v.buffered.length; bi++) {
@@ -997,7 +928,29 @@ function play(raw, skipProxy, videoId) {
         scheduleRetry();
         attemptAutoplay();
         restoreVolume();
-        syncVolumeButton(true);
+
+        if (volIcon) volIcon.innerHTML = VOL_ICONS.high;
+        if (volSlider) volSlider.value = 100;
+        updateVolumeUI();
+
+        if (volSlider) {
+            volSlider.addEventListener('input', function () {
+                v.volume = this.value / 100;
+                v.muted = this.value == 0;
+                updateVolumeUI();
+            });
+        }
+
+        var btnVolume = document.getElementById('btn-volume');
+        if (btnVolume) {
+            btnVolume.addEventListener('click', function (e) {
+                e.stopPropagation();
+                v.muted = !v.muted;
+                updateVolumeUI();
+            });
+        }
+
+        v.addEventListener('volumechange', updateVolumeUI);
     }
 
     var _autoplayUnlocked = false;
@@ -1039,7 +992,7 @@ function play(raw, skipProxy, videoId) {
             if (_unmuteDone) return;
             _unmuteDone = true;
             v.muted = false;
-            v.volume = getRestoredVolume();
+            v.volume = 1;
             _autoplayUnlocked = true;
             _pendingUnmute = false;
             hint.style.opacity = '0';
@@ -1048,7 +1001,6 @@ function play(raw, skipProxy, videoId) {
             hint.removeEventListener('click', onHintClick);
             document.removeEventListener('touchend', onDocTouch, true);
             document.removeEventListener('click', onDocClick, true);
-            syncVolumeButton(false, false);
             haptic();
         }
 
@@ -1115,49 +1067,15 @@ function play(raw, skipProxy, videoId) {
     function restoreVolume() {
         try {
             var vol = parseFloat(localStorage.getItem('playerVolume'));
-            if (!isNaN(vol) && vol >= 0 && vol <= 1) {
-                v.volume = vol;
-                if (vol > 0.001) lastAudibleVolume = vol;
-            }
+            if (!isNaN(vol) && vol >= 0 && vol <= 1) v.volume = vol;
         } catch (ex) { }
     }
 
     v.addEventListener('volumechange', function () {
         if (!v.muted) {
-            if (v.volume > 0.001) lastAudibleVolume = v.volume;
             try { localStorage.setItem('playerVolume', v.volume); } catch (ex) { }
         }
-        syncVolumeButton(false, animateVolumeIconOnNextSync);
-        animateVolumeIconOnNextSync = false;
     });
-
-    if (btnVolume) {
-        btnVolume.onclick = function (e) {
-            e.stopPropagation();
-            toggleMute();
-        };
-    }
-
-    if (volumeSlider) {
-        volumeSlider.addEventListener('input', function (e) {
-            e.stopPropagation();
-            var nextVolume = Math.max(0, Math.min(1, parseFloat(volumeSlider.value) / 100));
-            v.volume = nextVolume;
-            v.muted = nextVolume <= 0.001;
-            if (nextVolume > 0.001) {
-                lastAudibleVolume = nextVolume;
-                _autoplayUnlocked = true;
-                _pendingUnmute = false;
-                hideUnmuteHintInstant();
-            }
-            paintVolumeSlider(volumeSlider.value);
-            showUI();
-        });
-
-        volumeSlider.addEventListener('click', function (e) {
-            e.stopPropagation();
-        });
-    }
 
     var retryCount = 0;
     var maxRetries = 6;
@@ -1372,11 +1290,11 @@ function play(raw, skipProxy, videoId) {
             levelLoadingTimeOut: 20000,
             testBandwidth: true,
             xhrSetup: function (xhr, url) {
-                    xhr.withCredentials = false;
-                    if (url && url.startsWith('http://') && url.indexOf(API_BASE.replace(/^https?:\/\//, '')) !== -1) {
-                        url = url.replace('http://', 'https://');
-                        xhr.open('GET', url, true);
-                    }
+                xhr.withCredentials = false;
+                if (url && url.startsWith('http://missourimonster-vyla.hf.space')) {
+                    url = url.replace('http://', 'https://');
+                    xhr.open('GET', url, true);
+                }
             },
         };
         var hls = new Hls(hlsConfig);
@@ -1646,7 +1564,7 @@ function play(raw, skipProxy, videoId) {
                 groups[base].subs.push(sub);
             });
 
-            function buildLangGroups() {
+            window._buildLangGroups = function () {
                 if (!inlineEl) return;
                 inlineEl.innerHTML = '';
                 inlineEl.style.display = '';
@@ -1666,9 +1584,9 @@ function play(raw, skipProxy, videoId) {
                     });
                     inlineEl.appendChild(row);
                 });
-            }
+            };
 
-            buildLangGroups();
+            window._buildLangGroups();
 
             document.getElementById('sub-off-row').addEventListener('click', function () {
                 subState.activeTrack = -1;
@@ -1691,18 +1609,42 @@ function play(raw, skipProxy, videoId) {
         if (!inlineEl) return;
         inlineEl.innerHTML = '';
 
-        var header = document.createElement('div');
-        header.className = 'sub-lang-group-item';
-        header.style.cssText = 'cursor:pointer;opacity:0.7;';
+        var specialList = document.querySelector('#sub-lang-group-view .sub-special-list');
+        var sectionDivider = document.getElementById('sub-section-divider');
+        var svshTitle = document.querySelector('#sub-lang-group-view .svsh-title');
+        var customizeBtn = document.getElementById('sub-customize-open-btn');
+        var svshBack = document.querySelector('#sub-lang-group-view .svsh-back');
+
+        if (specialList) specialList.style.display = 'none';
+        if (sectionDivider) sectionDivider.style.display = 'none';
+        if (customizeBtn) customizeBtn.style.display = 'none';
+
         var titleCode = code || getLangCode(langLabel);
-        header.innerHTML =
-            '<i class="fa-solid fa-arrow-left" style="font-size:13px;width:26px;flex-shrink:0;"></i>' +
-            (titleCode ? '<img class="slg-flag" src="https://flagcdn.com/20x15/' + titleCode + '.png" width="26" height="20" alt="">' : '') +
-            '<span class="slg-name">' + langLabel + '</span>';
-        header.addEventListener('click', function () {
-            buildLangGroups();
-        });
-        inlineEl.appendChild(header);
+        if (svshTitle) {
+            svshTitle.innerHTML = (titleCode ? '<img class="slg-flag" src="https://flagcdn.com/20x15/' + titleCode + '.png" width="20" height="15" style="border-radius:2px;object-fit:cover;vertical-align:middle;margin-right:6px;">' : '') + langLabel;
+        }
+
+        var _origBack = null;
+        if (svshBack) {
+            _origBack = svshBack.cloneNode(true);
+            svshBack.replaceWith(_origBack);
+            _origBack.addEventListener('click', function () {
+                inlineEl.innerHTML = '';
+                if (specialList) specialList.style.display = '';
+                if (sectionDivider) sectionDivider.style.display = '';
+                if (customizeBtn) customizeBtn.style.display = '';
+                if (svshTitle) svshTitle.textContent = 'Subtitles';
+                window._buildLangGroups();
+                var newBack = document.querySelector('#sub-lang-group-view .svsh-back');
+                if (newBack) {
+                    newBack.addEventListener('click', function () {
+                        showSettingsView('main');
+                        haptic(6);
+                    });
+                }
+                haptic(6);
+            });
+        }
 
         subs.forEach(function (sub) {
             var row = document.createElement('div');
@@ -1759,6 +1701,8 @@ function play(raw, skipProxy, videoId) {
 
             inlineEl.appendChild(row);
         });
+
+        inlineEl.style.display = '';
     }
 
     function openSettings() {
@@ -2119,12 +2063,12 @@ function play(raw, skipProxy, videoId) {
 
         function attachHostVideoListeners() {
             v.addEventListener('play', function () {
-                if (!wpState.active || !wpState.isHost) return;
-                broadcastToGuests({ type: 'play', time: v.currentTime });
+                var icon = document.getElementById('play-btn-icon');
+                if (icon) icon.className = 'fa-solid fa-pause';
             });
             v.addEventListener('pause', function () {
-                if (!wpState.active || !wpState.isHost) return;
-                broadcastToGuests({ type: 'pause', time: v.currentTime });
+                var icon = document.getElementById('play-btn-icon');
+                if (icon) icon.className = 'fa-solid fa-play';
             });
             v.addEventListener('seeked', function () {
                 if (!wpState.active || !wpState.isHost) return;
@@ -2411,16 +2355,21 @@ function play(raw, skipProxy, videoId) {
             haptic(6);
         });
 
+        var btnSubShortcut = document.getElementById('btn-subtitles-shortcut');
+        if (btnSubShortcut) {
+            btnSubShortcut.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openSettings();
+                showSettingsView('subtitles');
+            });
+        }
+
         wpOverlayToggle.addEventListener('click', function () {
             wpState.overlayOn = !wpState.overlayOn;
             this.classList.toggle('on', wpState.overlayOn);
             updateWatchPartyOverlay();
             haptic(6);
         });
-
-        document.getElementById('btn-play').addEventListener('click', function (e) {
-            if (wpState.lockControls) { e.stopImmediatePropagation(); return; }
-        }, true);
 
         document.addEventListener('keydown', function (e) {
             if (!wpState.lockControls) return;
@@ -2941,27 +2890,10 @@ function play(raw, skipProxy, videoId) {
     }
 
     if (btnFullscreen) {
-        var fsIcon = btnFullscreen.querySelector('i');
-        function updateFsIcon() {
-            var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
-                document.mozFullScreenElement || document.msFullscreenElement;
-            var iosFs = isIOS() && v.webkitDisplayingFullscreen;
-            fsIcon.className = (fsEl || iosFs) ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-        }
-        function onFsChange() {
-            updateFsIcon();
-            showUI(true);
-        }
-        document.addEventListener('fullscreenchange', onFsChange);
-        document.addEventListener('webkitfullscreenchange', onFsChange);
-        document.addEventListener('mozfullscreenchange', onFsChange);
-        document.addEventListener('MSFullscreenChange', onFsChange);
-        v.addEventListener('webkitbeginfullscreen', updateFsIcon);
-        v.addEventListener('webkitendfullscreen', updateFsIcon);
         btnFullscreen.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
-            if (isIOS()) {
+            if (isIOS() && typeof v.webkitEnterFullscreen === 'function') {
                 if (v.webkitDisplayingFullscreen) {
                     v.webkitExitFullscreen();
                 } else {
@@ -3077,7 +3009,7 @@ function play(raw, skipProxy, videoId) {
         }
         if (e.key === ' ' || e.key === 'k' || e.key === 'K') { e.preventDefault(); haptic(10); v.paused ? v.play() : v.pause(); }
         if (e.key === 'f' || e.key === 'F') {
-            if (isIOS()) {
+            if (isIOS() && typeof v.webkitEnterFullscreen === 'function') {
                 if (v.webkitDisplayingFullscreen) {
                     v.webkitExitFullscreen();
                 } else {
@@ -3085,14 +3017,19 @@ function play(raw, skipProxy, videoId) {
                 }
                 return;
             }
-            var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-            var player = document.getElementById('player');
+            var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
+                document.mozFullScreenElement || document.msFullscreenElement;
             if (fsEl) {
                 if (document.exitFullscreen) document.exitFullscreen();
                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
             } else {
+                var player = document.getElementById('player');
                 if (player.requestFullscreen) player.requestFullscreen();
                 else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
+                else if (player.msRequestFullscreen) player.msRequestFullscreen();
             }
         }
     });
@@ -3166,7 +3103,6 @@ function play(raw, skipProxy, videoId) {
 
     v.addEventListener('durationchange', function () {
         if (v.duration) {
-            tDur.textContent = fmt(v.duration);
             clearTimeout(retryTimer);
             retryCount = maxRetries;
             hideBuffering();
@@ -3177,17 +3113,6 @@ function play(raw, skipProxy, videoId) {
     setTimeout(function () {
         restoreTimestamp();
     }, 2000);
-
-    v.addEventListener('play', function () { syncIcon(); ci.classList.remove('paused'); centerFlash.classList.remove('paused'); showUI(); });
-    v.addEventListener('pause', function () {
-        syncIcon();
-        ci.classList.add('paused');
-        centerFlash.classList.add('paused');
-        showUI(true);
-        clearTimeout(hideTimer);
-        var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
-        saveTimestamp(videoKey, v.currentTime);
-    });
 
     var lastSaveTime = 0;
     v.addEventListener('timeupdate', function () {
@@ -3314,18 +3239,13 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
-    document.getElementById('btn-play').addEventListener('click', function (e) {
-        e.stopPropagation();
-        v.paused ? v.play() : v.pause();
-    });
-
     v.style.pointerEvents = 'none';
 
-    var existingOverlay = document.getElementById('_vyla_click_overlay');
+    var existingOverlay = document.getElementById('click-overlay');
     if (existingOverlay) existingOverlay.remove();
 
     var clickOverlay = document.createElement('div');
-    clickOverlay.id = '_vyla_click_overlay';
+    clickOverlay.id = 'click-overlay';
     clickOverlay.style.cssText = 'position:absolute;inset:0;z-index:1;';
     v.parentElement.appendChild(clickOverlay);
 
@@ -3335,15 +3255,22 @@ function play(raw, skipProxy, videoId) {
             showUI(true);
             return;
         }
-        var rect = clickOverlay.getBoundingClientRect();
-        var dx = e.clientX - (rect.left + rect.width / 2);
-        var dy = e.clientY - (rect.top + rect.height / 2);
-        if (Math.sqrt(dx * dx + dy * dy) <= 100) {
+        var isTouch = window.matchMedia('(pointer: coarse)').matches;
+        if (isTouch) {
+            var rect = clickOverlay.getBoundingClientRect();
+            var dx = e.clientX - (rect.left + rect.width / 2);
+            var dy = e.clientY - (rect.top + rect.height / 2);
+            if (Math.sqrt(dx * dx + dy * dy) <= 100) {
+                haptic();
+                flashCenter();
+                v.paused ? v.play() : v.pause();
+            } else {
+                hideUI();
+            }
+        } else {
             haptic();
             flashCenter();
             v.paused ? v.play() : v.pause();
-        } else {
-            hideUI();
         }
     });
 
@@ -4128,24 +4055,31 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
+    function fallbackEps(season) {
+        var arr = [];
+        var count = (_epSeasonCache['_count_' + season]) || 20;
+        for (var i = 1; i <= count; i++) arr.push({ episode_number: i, name: 'Episode ' + i, runtime: null, still_path: null });
+        return arr;
+    }
+
     function fetchSeason(season, cb) {
-        if (_epSeasonCache[season]) { cb(_epSeasonCache[season]); return; }
-        fetch('https://api.themoviedb.org/3/tv/' + id + '/season/' + season + '?api_key=' + TMDB_KEY)
-            .then(function (r) { return r.json(); })
+        if (_epSeasonCache[season] && _epSeasonCache[season]._real) { cb(_epSeasonCache[season]); return; }
+        fetch('https://api.themoviedb.org/3/tv/' + id + '/season/' + season + '?api_key=' + TMDB_KEY + '&language=en-US&append_to_response=images')
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
             .then(function (d) {
-                _epSeasonCache[season] = d.episodes || fallbackEps();
+                if (!d.episodes || !d.episodes.length) throw new Error('no episodes');
+                d.episodes._real = true;
+                _epSeasonCache[season] = d.episodes;
+                _epSeasonCache[season]._real = true;
                 cb(_epSeasonCache[season]);
             })
             .catch(function () {
-                _epSeasonCache[season] = fallbackEps();
-                cb(_epSeasonCache[season]);
+                _epSeasonCache[season] = null;
+                cb(fallbackEps(season));
             });
-    }
-
-    function fallbackEps() {
-        var arr = [];
-        for (var i = 1; i <= 20; i++) arr.push({ episode_number: i, name: 'Episode ' + i, runtime: null, still_path: null });
-        return arr;
     }
 
     fetch('https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY)
